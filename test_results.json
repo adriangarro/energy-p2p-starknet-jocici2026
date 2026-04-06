@@ -1,0 +1,283 @@
+{
+  "transactions": [
+    {
+      "label": "register_user (Juan GD)",
+      "tx_hash": "0x6e773ec88103c999912caec3f5008fde2dbd0c090015f0c1f3bf2bdc512b022",
+      "actual_fee_fri": "1317664000000000",
+      "actual_fee_strk": "0.001317664",
+      "gas_l2": 1316800,
+      "latency_s": "1.59",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 640,
+        "l2_gas": 1316800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "register_user (Maria Consumer)",
+      "tx_hash": "0x7d87e4c2596597253837e5efc559df6518f9b0291efac0da34500af9be302ea",
+      "actual_fee_fri": "1277536000000000",
+      "actual_fee_strk": "0.001277536",
+      "gas_l2": 1276800,
+      "latency_s": "1.66",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 576,
+        "l2_gas": 1276800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "register_energy_measurement (Juan 15gen/10cons)",
+      "tx_hash": "0xdfb0b87b755fc41207540d9cd9f236092e23d1ae2f097b45bde74b6fd09e1b",
+      "actual_fee_fri": "1277344000000000",
+      "actual_fee_strk": "0.001277344",
+      "gas_l2": 1276800,
+      "latency_s": "1.26",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 448,
+        "l2_gas": 1276800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "deposit_funds (Maria 2000)",
+      "tx_hash": "0x3abfe7ddac29367cba546c24af49267b87ad538a0632ed4897f013712c15444",
+      "actual_fee_fri": "1181728000000000",
+      "actual_fee_strk": "0.001181728",
+      "gas_l2": 1181440,
+      "latency_s": "1.25",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 256,
+        "l2_gas": 1181440
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "create_energy_offer (Juan 5kWh @ 330)",
+      "tx_hash": "0x6f9554076d7fc832abb7176fbabe0acd794534c86d38726d0cebf737d5902d1",
+      "actual_fee_fri": "1477824000000000",
+      "actual_fee_strk": "0.001477824",
+      "gas_l2": 1476800,
+      "latency_s": "1.29",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 768,
+        "l2_gas": 1476800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "create_energy_demand (Maria 3kWh max 350)",
+      "tx_hash": "0x62422f9e8f29530927db9a2a126e96a7cdc956a79eeb3c38c92b9e878cf1671",
+      "actual_fee_fri": "1357664000000000",
+      "actual_fee_strk": "0.001357664",
+      "gas_l2": 1356800,
+      "latency_s": "1.30",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 640,
+        "l2_gas": 1356800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "execute_automatic_matching (Esc.1 baseline 2 pairs)",
+      "tx_hash": "0x63ace44bb0762dafacbaa90f09cae6e3ab15bd71bac524a102214a78ea33cde",
+      "actual_fee_fri": "1917760000000000",
+      "actual_fee_strk": "0.001917760",
+      "gas_l2": 1916800,
+      "latency_s": "1.26",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 832,
+        "l2_gas": 1916800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "register_user (Seller GD Esc2)",
+      "tx_hash": "0x81d66a1717e475e30c02435f1950bafb25e569d84827bb9476a6e252672c3a",
+      "actual_fee_fri": "1317632000000000",
+      "actual_fee_strk": "0.001317632",
+      "gas_l2": 1316800,
+      "latency_s": "1.67",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 640,
+        "l2_gas": 1316800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "register_user (Buyer Consumer Esc2)",
+      "tx_hash": "0x549a515e49dbbe0fc53d63e2ad36bf03c5e75c31e541eb416345a25d5c7ad03",
+      "actual_fee_fri": "1277536000000000",
+      "actual_fee_strk": "0.001277536",
+      "gas_l2": 1276800,
+      "latency_s": "1.65",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 576,
+        "l2_gas": 1276800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "register_energy_measurement (Seller 10gen/2cons)",
+      "tx_hash": "0x209e9d209988a7679516562cb9c91b7b0cb3f22562cf899796eaeb151b6f1f",
+      "actual_fee_fri": "1277344000000000",
+      "actual_fee_strk": "0.001277344",
+      "gas_l2": 1276800,
+      "latency_s": "1.36",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 448,
+        "l2_gas": 1276800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "deposit_funds (Buyer 5000 Esc2)",
+      "tx_hash": "0x3a1737fb015a9f94e5a377d9805f692d6fba2e0911646507501c1fb93d61b2c",
+      "actual_fee_fri": "1181728000000000",
+      "actual_fee_strk": "0.001181728",
+      "gas_l2": 1181440,
+      "latency_s": "1.29",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 256,
+        "l2_gas": 1181440
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "create_energy_offer (400 COP/kWh — incompatible)",
+      "tx_hash": "0x307d34accffe7e755f94373bcf17baf176853bb7b00d96155fe7a357c205c5",
+      "actual_fee_fri": "1477792000000000",
+      "actual_fee_strk": "0.001477792",
+      "gas_l2": 1476800,
+      "latency_s": "1.34",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 768,
+        "l2_gas": 1476800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "create_energy_demand (max 300 COP/kWh — incompatible)",
+      "tx_hash": "0x5dfb1c5cbfee308e31a764fd31af1857bb13669f095d1667f9d3dfb8350b91e",
+      "actual_fee_fri": "1357632000000000",
+      "actual_fee_strk": "0.001357632",
+      "gas_l2": 1356800,
+      "latency_s": "1.28",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 640,
+        "l2_gas": 1356800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "execute_automatic_matching (Esc.2 price mismatch)",
+      "tx_hash": "0x79de88e62bf2acb50ea4c3cca994fa669efbfa7f6d0991bc3456c55456d0eea",
+      "actual_fee_fri": "1310848000000000",
+      "actual_fee_strk": "0.001310848",
+      "gas_l2": 1310720,
+      "latency_s": "1.24",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 128,
+        "l2_gas": 1310720
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "create_energy_offer (3kWh @ 330 Esc3)",
+      "tx_hash": "0x625f29fe84158def0e139c753b0173b6c6cc30c20523c016aa97fe18fe387ec",
+      "actual_fee_fri": "1477760000000000",
+      "actual_fee_strk": "0.001477760",
+      "gas_l2": 1476800,
+      "latency_s": "1.57",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 768,
+        "l2_gas": 1476800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "withdraw_funds (Buyer leaves 200 COP)",
+      "tx_hash": "0x4ccd022bc5b4cf6bf254888d0c96fe6ea6c60356f6f8772562c000585516ee8",
+      "actual_fee_fri": "1101696000000000",
+      "actual_fee_strk": "0.001101696",
+      "gas_l2": 1101440,
+      "latency_s": "1.52",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 256,
+        "l2_gas": 1101440
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "create_energy_demand (Esc.3 REJECTED)",
+      "status": "REVERTED",
+      "revert_reason": "Insufficient funds",
+      "latency_s": "N/A"
+    },
+    {
+      "label": "register_energy_measurement G2 (8gen/1cons)",
+      "tx_hash": "0x4d292b4c714964bb5ba1bb519e53ba8ff6a3c1424235c08b765792e98a629ac",
+      "actual_fee_fri": "1277280000000000",
+      "actual_fee_strk": "0.001277280",
+      "gas_l2": 1276800,
+      "latency_s": "1.56",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 448,
+        "l2_gas": 1276800
+      },
+      "revert_reason": null
+    },
+    {
+      "label": "deposit_funds C2 (3000 COP)",
+      "tx_hash": "0x71a71301a9d735e441be27bd5996f17a4fd509124153b9050f74762cbbaf341",
+      "actual_fee_fri": "1181696000000000",
+      "actual_fee_strk": "0.001181696",
+      "gas_l2": 1181440,
+      "latency_s": "1.61",
+      "status": "SUCCEEDED",
+      "execution_resources": {
+        "l1_gas": 0,
+        "l1_data_gas": 256,
+        "l2_gas": 1181440
+      },
+      "revert_reason": null
+    }
+  ],
+  "scenarios": [],
+  "metrics": {},
+  "contractAddress": "0x5681469e26e3e1eaa335047f4050b1f7bfd758f1cf85db6c55da28e0f73c523"
+}

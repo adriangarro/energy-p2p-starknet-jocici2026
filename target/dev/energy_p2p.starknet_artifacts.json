@@ -1,0 +1,1 @@
+{"version":1,"contracts":[{"id":"46kfhstltqp7k","package_name":"energy_p2p","contract_name":"EnergyP2PTradingV2","module_path":"energy_p2p::EnergyP2PTradingV2","artifacts":{"sierra":"energy_p2p_EnergyP2PTradingV2.contract_class.json","casm":"energy_p2p_EnergyP2PTradingV2.compiled_contract_class.json"}}]}

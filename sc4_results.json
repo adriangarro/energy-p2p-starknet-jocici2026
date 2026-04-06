@@ -1,0 +1,74 @@
+[
+  {
+    "label": "register_energy_measurement G1 fresh (10gen/2cons)",
+    "gas": 1276800,
+    "fee": "0.001277280",
+    "lat": "2.45",
+    "hash": "0x69cbf4ef7d94a5a3e695122fee58052ae3779b96fc262d6955186abda2dc9f5",
+    "status": "SUCCEEDED"
+  },
+  {
+    "label": "create_energy_offer G1 (3kWh @ 330 Esc4)",
+    "gas": 1476800,
+    "fee": "0.001477760",
+    "lat": "1.31",
+    "hash": "0x337a6344a8735c6d2933d7869d6d324a3fbd80508b134160e715490ca4f80a1",
+    "status": "SUCCEEDED"
+  },
+  {
+    "label": "create_energy_offer G2 (3kWh @ 340 Esc4)",
+    "gas": 1476800,
+    "fee": "0.001477760",
+    "lat": "1.68",
+    "hash": "0x5522c10d6a8ebc0b0ec22461c58b4b2162c96a559a51ba7641441d5ab84b3d9",
+    "status": "SUCCEEDED"
+  },
+  {
+    "label": "deposit_funds C1 (4000 Esc4)",
+    "gas": 1181440,
+    "fee": "0.001181696",
+    "lat": "1.60",
+    "hash": "0xc2d5b2ac1503adb324e90db813fa16783d1bbf5e12011a29e6f03aee147f9e",
+    "status": "SUCCEEDED"
+  },
+  {
+    "label": "deposit_funds C2 (3000 Esc4)",
+    "gas": 1181440,
+    "fee": "0.001181696",
+    "lat": "1.61",
+    "hash": "0x7aa2050b086890b61d0b6eb33da0ad8e937259d7504873eb3c5094bbee23b82",
+    "status": "SUCCEEDED"
+  },
+  {
+    "label": "create_energy_demand C1 (2kWh max 350 Esc4)",
+    "gas": 1356800,
+    "fee": "0.001357632",
+    "lat": "1.28",
+    "hash": "0x7bf023a16b58c95ba6f8d5e7ea6930a49223e16d9e6ca181b69e3ddce84d03",
+    "status": "SUCCEEDED"
+  },
+  {
+    "label": "create_energy_demand C2 (2kWh max 360 Esc4)",
+    "gas": 1356800,
+    "fee": "0.001357632",
+    "lat": "1.26",
+    "hash": "0x642d98b4ea32f43b0fd488789fcfd8f8be2ce705d4c254065ccb2fa38e597e1",
+    "status": "SUCCEEDED"
+  },
+  {
+    "label": "execute_optimized_matching (Esc.4 multi-user 4 orders)",
+    "gas": 3722880,
+    "fee": "0.003724288",
+    "lat": "1.42",
+    "hash": "0x2bdb18dddd499883a71325c8152645de622c3035c87177b15d208904e5c97b1",
+    "status": "SUCCEEDED"
+  },
+  {
+    "label": "execute_automatic_matching (10 pairs)",
+    "gas": 10941120,
+    "fee": "0.010943168",
+    "lat": "1.20",
+    "hash": "0x35a383dcc49d23f4367f0bfcb929e1d0edede700e1b6e2254d47e731e5f1ad",
+    "status": "SUCCEEDED"
+  }
+]
