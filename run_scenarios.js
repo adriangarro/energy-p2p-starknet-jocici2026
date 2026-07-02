@@ -557,11 +557,10 @@ async function main() {
 
     console.log("ABI cargado exitosamente. Longitud:", abi.length);
 
-//    const { contractAddress } = await deployContract();
     const { contractAddress, contractClass } = await deployContract();
-//  await runScenario1(contractClass, contractAddress); 
-//  await runScenario2(contractClass, contractAddress);
-//  await runScenario3(contractClass, contractAddress);
+    await runScenario1(contractClass, contractAddress); 
+    await runScenario2(contractClass, contractAddress);
+    await runScenario3(contractClass, contractAddress);
     await runScenario4(contractClass, contractAddress);
     await runHighLoadMatching(contractAddress);
 
