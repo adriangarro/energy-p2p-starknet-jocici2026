@@ -2,22 +2,25 @@ const starknet = require("starknet");
 const { RpcProvider, Account, Contract, json, stark, CallData, shortString, hash } = starknet;
 const fs = require("fs");
 const path = require("path");
+require("dotenv").config();
 
 const provider = new RpcProvider({
-  nodeUrl: "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/JPV1MzP7gvBphIUUnGcpg",
+  nodeUrl: process.env.STARKNET_RPC_URL,
 });
 
 // deployed accounts from sepolia
 const ACCOUNTS = [
-  { address: "0x5bfc1f630ec0b3959487b444866830f3bed289b3738c6a13c3f72bc14382d3b", pk: "0x23f9acb154ec3537a92e148f7e7c7335632103ff243511d17ad14a8a1495e19" },
-  { address: "0x3dead823332a509e9dc078e8c641f5f96e70d6c024d080014400d08f30f3f5c", pk: "0x60620d7708363d7d7360f12c7eedee62a360ee324153fd9470ead1f32fc9ca9" },
-  { address: "0x565734e86fca9fafb3398736c7f4ba8b40498def354e2d7e7aa5b5d13138cde", pk: "0x68839b294834587ae96545d93aeef8a4843049907ff96a4da3cf51ddd843fc4" },
-  { address: "0x5e2e5f931f66bab8b29e85f8deae28f467252d86aae7eee144575ca3f60f4c8", pk: "0x180930f2c5f3098c72e34ef06eb8a54366753e1a23599b9af226c6bdd93d1e1" },
-  { address: "0x296117fc9ca83a612360d31104bdb3dfbbcc9a098f226afab491f64eff5d4fe", pk: "0x1713ac7c5a1091d6e11b1e05daa10129f2316d210a56f864b34c005953850e6" },
+  { address: process.env.ACCOUNT_0_ADDRESS, pk: process.env.ACCOUNT_0_PK },
+  { address: process.env.ACCOUNT_1_ADDRESS, pk: process.env.ACCOUNT_1_PK },
+  { address: process.env.ACCOUNT_2_ADDRESS, pk: process.env.ACCOUNT_2_PK },
+  { address: process.env.ACCOUNT_3_ADDRESS, pk: process.env.ACCOUNT_3_PK },
+  { address: process.env.ACCOUNT_4_ADDRESS, pk: process.env.ACCOUNT_4_PK },
 ];
 
-const CONTRACT_DIR = "/home/volkova/energy-p2p-starknet-jocici2026/target/dev";
-const CONTRACT_ADDRESS_FILE = path.join(__dirname, "deployed_contract_address.txt");
+const CONTRACT_DIR = path.join(__dirname, "/target/dev");
+
+const test_results = path.join(__dirname, "test_results.json");
+
 const results = { transactions: [], scenarios: [], metrics: {} };
 
 function account(idx) {
@@ -87,18 +90,34 @@ async function measure(label, fn) {
   return { receipt, txHash: transaction_hash };
 }
 
-function readSavedContractAddress() {
-  try {
-    if (!fs.existsSync(CONTRACT_ADDRESS_FILE)) return null;
-    const value = fs.readFileSync(CONTRACT_ADDRESS_FILE, "utf8").trim();
-    return value || null;
-  } catch (e) {
-    return null;
-  }
-}
 
-function writeSavedContractAddress(address) {
-  fs.writeFileSync(CONTRACT_ADDRESS_FILE, address, "utf8");
+async function ensureUserRegistered(account, contractClass, contractAddress, label, userData) {
+  const myCallData = new CallData(contractClass.abi);
+
+  try {
+    const response = await provider.callContract({
+      contractAddress,
+      entrypoint: "get_user_profile",
+      calldata: myCallData.compile("get_user_profile", { user: account.address })
+    });
+
+    const isRegistered = response.result.some(val => val !== "0x0" && val !== "0");
+
+    if (isRegistered) {
+      console.log(`  - Skipping ${label}: The user is already registered.`);
+      return; 
+    }
+  } catch (error) {
+
+  }
+
+  await measure(label, () =>
+    account.execute([{
+      contractAddress,
+      entrypoint: "register_user",
+      calldata: myCallData.compile("register_user", userData)
+    }])
+  );
 }
 
 function readContractArtifacts() {
@@ -121,14 +140,6 @@ function readContractArtifacts() {
 async function deployContract() {
   console.log("\n=== Deploying EnergyP2PTradingV2 ===");
 
-  const savedAddress = readSavedContractAddress();
-  if (savedAddress) {
-    console.log(`  Reusing saved contract address: ${savedAddress}`);
-    const { sierra } = readContractArtifacts();
-    results.contractAddress = savedAddress;
-    return { contractAddress: savedAddress, contractClass: sierra };
-  }
-
   const adminAcc = account(0);
   const { sierra, casm } = readContractArtifacts();
 
@@ -145,17 +156,7 @@ async function deployContract() {
       ? rawData
       : rawData?.execution_error || rawData?.message || err?.message || String(err);
     if (typeof msg === "string" && msg.includes("already declared")) {
-      console.log("  Class already declared on Sepolia; skipping redeclare.");
-      classHash = sierra.class_hash || sierra.classHash;
-      if (!classHash) {
-        const match = msg.match(/Class with hash (0x[0-9a-fA-F]+)/);
-        if (match) {
-          classHash = match[1];
-          console.log(`  Parsed class hash from Sepolia error: ${classHash}`);
-        } else {
-          console.log("  Warning: could not infer class hash from Sepolia error.");
-        }
-      }
+      classHash = hash.computeContractClassHash(sierra);
     } else {
       throw err;
     }
@@ -175,38 +176,37 @@ async function deployContract() {
   await provider.waitForTransaction(deployResponse.transaction_hash);
   const contractAddress = deployResponse.contract_address;
   console.log(`  Deployed at: ${contractAddress}`);
-  writeSavedContractAddress(contractAddress);
   results.contractAddress = contractAddress;
   return { contractAddress, contractClass: sierra };
 }
 
 async function runScenario1(contractClass, contractAddress) {
   console.log("\n=== Scenario 1: Juan + Maria, successful tx ===");
-
+  
   const juan = account(1);
   const maria = account(2);
 
-  await measure("register_user (Juan GD)", () =>
-    juan.execute([{
-      contractAddress,
-      entrypoint: "register_user",
-      calldata: [2n, 50n, 1n],
-    }])
-  );
+  const myCallData = new CallData(contractClass.abi);
 
-  await measure("register_user (Maria Consumer)", () =>
-    maria.execute([{
-      contractAddress,
-      entrypoint: "register_user",
-      calldata: [0n, 30n, 1n],
-    }])
-  );
+  await ensureUserRegistered(juan, contractClass, contractAddress, "register_user (Juan GD)", {
+    user_type: 2n,
+    capacity_kw: 50n,
+    location_node: 1n
+  });
+  await ensureUserRegistered(maria, contractClass, contractAddress, "register_user (Maria Consumer)", {
+    user_type: 0n,
+    capacity_kw: 30n,
+    location_node: 1n
+  });
 
   await measure("register_energy_measurement (Juan 15gen/10cons)", () =>
     juan.execute([{
       contractAddress,
       entrypoint: "register_energy_measurement",
-      calldata: [15n, 10n],
+      calldata: myCallData.compile("register_energy_measurement", { 
+        generated_kwh: 15n, 
+        consumed_kwh: 10n 
+      })
     }])
   );
 
@@ -214,7 +214,9 @@ async function runScenario1(contractClass, contractAddress) {
     maria.execute([{
       contractAddress,
       entrypoint: "deposit_funds",
-      calldata: [2000n],
+      calldata: myCallData.compile("deposit_funds", { 
+        amount: 2000n 
+      })
     }])
   );
 
@@ -222,7 +224,10 @@ async function runScenario1(contractClass, contractAddress) {
     juan.execute([{
       contractAddress,
       entrypoint: "create_energy_offer",
-      calldata: [5n, 330n],
+      calldata: myCallData.compile("create_energy_offer", { 
+        amount_kwh: 5n, 
+        price_per_kwh: 330n 
+      })
     }])
   );
 
@@ -230,7 +235,10 @@ async function runScenario1(contractClass, contractAddress) {
     maria.execute([{
       contractAddress,
       entrypoint: "create_energy_demand",
-      calldata: [3n, 350n],
+      calldata: myCallData.compile("create_energy_demand", { 
+        amount_kwh: 3n, 
+        max_price_per_kwh: 350n 
+      })
     }])
   );
 
@@ -238,7 +246,7 @@ async function runScenario1(contractClass, contractAddress) {
     juan.execute([{
       contractAddress,
       entrypoint: "execute_automatic_matching",
-      calldata: [],
+      calldata: [] 
     }])
   );
 
@@ -249,28 +257,25 @@ async function runScenario2(contractClass, contractAddress) {
   console.log("\n=== Scenario 2: Price incompatibility rejection ===");
   const seller = account(3);
   const buyer = account(4);
+  
+  const myCallData = new CallData(contractClass.abi);
 
-  await measure("register_user (Seller GD Esc2)", () =>
-    seller.execute([{
-      contractAddress,
-      entrypoint: "register_user",
-      calldata: [2n, 40n, 1n],
-    }])
-  );
-
-  await measure("register_user (Buyer Consumer Esc2)", () =>
-    buyer.execute([{
-      contractAddress,
-      entrypoint: "register_user",
-      calldata: [0n, 20n, 1n],
-    }])
-  );
+  await ensureUserRegistered(seller, contractClass, contractAddress, "register_user (Seller GD Esc2)", {
+    user_type: 2n,
+    capacity_kw: 40n, 
+    location_node: 1n
+  });
+  await ensureUserRegistered(buyer, contractClass, contractAddress, "register_user (Buyer Consumer Esc2)",{
+    user_type: 0n,
+    capacity_kw: 20n,
+    location_node: 1n
+  });
 
   await measure("register_energy_measurement (Seller 10gen/2cons)", () =>
     seller.execute([{
       contractAddress,
       entrypoint: "register_energy_measurement",
-      calldata: [10n, 2n],
+      calldata: myCallData.compile("register_energy_measurement", { generated_kwh: 10n, consumed_kwh: 2n })
     }])
   );
 
@@ -278,7 +283,7 @@ async function runScenario2(contractClass, contractAddress) {
     buyer.execute([{
       contractAddress,
       entrypoint: "deposit_funds",
-      calldata: [5000n],
+      calldata: myCallData.compile("deposit_funds", { amount: 5000n })
     }])
   );
 
@@ -286,7 +291,7 @@ async function runScenario2(contractClass, contractAddress) {
     seller.execute([{
       contractAddress,
       entrypoint: "create_energy_offer",
-      calldata: [5n, 400n],
+      calldata: myCallData.compile("create_energy_offer", { amount_kwh: 5n, price_per_kwh: 400n })
     }])
   );
 
@@ -294,7 +299,7 @@ async function runScenario2(contractClass, contractAddress) {
     buyer.execute([{
       contractAddress,
       entrypoint: "create_energy_demand",
-      calldata: [3n, 300n],
+      calldata: myCallData.compile("create_energy_demand", { amount_kwh: 3n, max_price_per_kwh: 300n })
     }])
   );
 
@@ -302,7 +307,7 @@ async function runScenario2(contractClass, contractAddress) {
     seller.execute([{
       contractAddress,
       entrypoint: "execute_automatic_matching",
-      calldata: [],
+      calldata: []
     }])
   );
 
@@ -311,62 +316,49 @@ async function runScenario2(contractClass, contractAddress) {
 
 async function runScenario3(contractClass, contractAddress) {
   console.log("\n=== Scenario 3: Insufficient solvency ===");
-  console.log("  Scenario 3: Register buyer with insufficient balance (500 COP, needs 990 COP) → confirm contract rejection");
-
+  // Reuse seller from sc2, register new poor buyer
+  // We need a new account — reuse account 4 but with fresh offer
   const seller = account(3);
   const poorBuyer = account(4);
 
-  await measure("register_user (Seller GD Esc3)", () =>
-    seller.execute([{
-      contractAddress,
-      entrypoint: "register_user",
-      calldata: [2n, 20n, 1n],
-    }])
-  );
+  const myCallData = new CallData(contractClass.abi);
 
-  await measure("register_user (Poor Buyer Esc3)", () =>
-    poorBuyer.execute([{
-      contractAddress,
-      entrypoint: "register_user",
-      calldata: [0n, 20n, 1n],
-    }])
-  );
-
-  await measure("register_energy_measurement (Seller 5gen/0cons Esc3)", () =>
-    seller.execute([{
-      contractAddress,
-      entrypoint: "register_energy_measurement",
-      calldata: [5n, 0n],
-    }])
-  );
-
-  await measure("deposit_funds (Poor Buyer 500 COP Esc3)", () =>
-    poorBuyer.execute([{
-      contractAddress,
-      entrypoint: "deposit_funds",
-      calldata: [500n],
-    }])
-  );
-
+  // Reset poor buyer: deposit only 500 COP (need 990 for 3kWh@330)
+  // Note: buyer already has 5000 in balance from scenario 2
+  // We need to create demand that exceeds available-after-prior balance
+  // Simpler: create new offer and demand with new amounts
   await measure("create_energy_offer (3kWh @ 330 Esc3)", () =>
-    seller.execute([{
-      contractAddress,
-      entrypoint: "create_energy_offer",
-      calldata: [3n, 330n],
+    seller.execute([{ 
+      contractAddress, 
+      entrypoint: "create_energy_offer", 
+      calldata: myCallData.compile("create_energy_offer", { amount_kwh: 3n, price_per_kwh: 330n }) 
     }])
   );
 
-  console.log("  Scenario 3: Attempting demand with 500 COP balance, need 990...");
+  // Buyer already has funds from previous scenario — this scenario shows
+  // the financial protection check when balance would go negative conceptually
+  // Better: withdraw most funds first
+  await measure("withdraw_funds (Buyer leaves 200 COP)", () =>
+    poorBuyer.execute([{ 
+      contractAddress, 
+      entrypoint: "withdraw_funds",
+      calldata: myCallData.compile("withdraw_funds", { amount: 4800n }) 
+    }])
+  );
+
+  // Now poorBuyer has ~200 COP, needs 990 for 3kWh@330 — demand creation will fail
+  // The assert in create_energy_demand will catch insufficient funds
+  console.log("  Scenario 3: Attempting demand with 200 COP balance, need 990...");
   try {
     const t0 = Date.now();
-    const tx = await poorBuyer.execute([{
-      contractAddress,
-      entrypoint: "create_energy_demand",
-      calldata: [3n, 330n],
+    const tx = await poorBuyer.execute([{ 
+      contractAddress, 
+      entrypoint: "create_energy_demand", 
+      calldata: myCallData.compile("create_energy_demand", { amount_kwh: 3n, max_price_per_kwh: 330n }) 
     }]);
     const receipt = await provider.waitForTransaction(tx.transaction_hash);
     const elapsed = (Date.now() - t0) / 1000;
-
+    
     const entry = {
       label: "create_energy_demand (Esc.3 — REVERTED insufficient funds)",
       tx_hash: tx.transaction_hash,
@@ -377,11 +369,12 @@ async function runScenario3(contractClass, contractAddress) {
     results.transactions.push(entry);
     console.log(`  ✓ Demand REVERTED as expected: ${receipt.revert_reason || "Insufficient funds"}`);
   } catch (e) {
-    results.transactions.push({
-      label: "create_energy_demand (Esc.3 REJECTED)",
-      status: "REVERTED",
-      revert_reason: "Insufficient funds",
-      latency_s: "N/A",
+    // Expected revert
+    results.transactions.push({ 
+      label: "create_energy_demand (Esc.3 REJECTED)", 
+      status: "REVERTED", 
+      revert_reason: "Insufficient funds", 
+      latency_s: "N/A" 
     });
     console.log(`  ✓ Demand rejected by contract: ${e.message.slice(0, 80)}`);
   }
@@ -389,48 +382,43 @@ async function runScenario3(contractClass, contractAddress) {
 
 async function runScenario4(contractClass, contractAddress) {
   console.log("\n=== Scenario 4: Multi-user concurrent matching (5 users) ===");
+
   const G1 = account(1);
   const G2 = account(3);
   const C1 = account(2);
   const C2 = account(4);
 
-  await measure("register_user G1 (Generator)", () =>
-    G1.execute([{
-      contractAddress,
-      entrypoint: "register_user",
-      calldata: [2n, 50n, 1n],
-    }])
-  );
+  const myCallData = new CallData(contractClass.abi);
 
-  await measure("register_user G2 (Generator)", () =>
-    G2.execute([{
-      contractAddress,
-      entrypoint: "register_user",
-      calldata: [2n, 40n, 1n],
-    }])
-  );
-
-  await measure("register_user C1 (Consumer)", () =>
-    C1.execute([{
-      contractAddress,
-      entrypoint: "register_user",
-      calldata: [0n, 30n, 1n],
-    }])
-  );
-
-  await measure("register_user C2 (Consumer)", () =>
-    C2.execute([{
-      contractAddress,
-      entrypoint: "register_user",
-      calldata: [0n, 20n, 1n],
-    }])
-  );
+  await ensureUserRegistered(G1, contractClass, contractAddress, "register_user G1 (Generator)", { 
+    user_type: 2n, 
+    capacity_kw: 50n, 
+    location_node: 1n 
+  });
+  
+  await ensureUserRegistered(G2, contractClass, contractAddress, "register_user G2 (Generator)", { 
+    user_type: 2n, 
+    capacity_kw: 40n, 
+    location_node: 1n 
+  });
+  
+  await ensureUserRegistered(C1, contractClass, contractAddress, "register_user C1 (Consumer)", { 
+    user_type: 0n, 
+    capacity_kw: 30n, 
+    location_node: 1n 
+  });
+  
+  await ensureUserRegistered(C2, contractClass, contractAddress, "register_user C2 (Consumer)", { 
+    user_type: 0n, 
+    capacity_kw: 20n, 
+    location_node: 1n 
+  });
 
   await measure("register_energy_measurement G1 (5gen/0cons)", () =>
     G1.execute([{
       contractAddress,
       entrypoint: "register_energy_measurement",
-      calldata: [5n, 0n],
+      calldata: myCallData.compile("register_energy_measurement", { generated_kwh: 5n, consumed_kwh: 0n })
     }])
   );
 
@@ -438,7 +426,7 @@ async function runScenario4(contractClass, contractAddress) {
     G2.execute([{
       contractAddress,
       entrypoint: "register_energy_measurement",
-      calldata: [8n, 1n],
+      calldata: myCallData.compile("register_energy_measurement", { generated_kwh: 8n, consumed_kwh: 1n })
     }])
   );
 
@@ -446,7 +434,7 @@ async function runScenario4(contractClass, contractAddress) {
     C2.execute([{
       contractAddress,
       entrypoint: "deposit_funds",
-      calldata: [3000n],
+      calldata: myCallData.compile("deposit_funds", { amount: 3000n })
     }])
   );
 
@@ -454,7 +442,7 @@ async function runScenario4(contractClass, contractAddress) {
     G1.execute([{
       contractAddress,
       entrypoint: "create_energy_offer",
-      calldata: [2n, 320n],
+      calldata: myCallData.compile("create_energy_offer", { amount_kwh: 2n, price_per_kwh: 320n })
     }])
   );
 
@@ -462,7 +450,7 @@ async function runScenario4(contractClass, contractAddress) {
     G2.execute([{
       contractAddress,
       entrypoint: "create_energy_offer",
-      calldata: [3n, 340n],
+      calldata: myCallData.compile("create_energy_offer", { amount_kwh: 3n, price_per_kwh: 340n })
     }])
   );
 
@@ -470,7 +458,7 @@ async function runScenario4(contractClass, contractAddress) {
     C2.execute([{
       contractAddress,
       entrypoint: "create_energy_demand",
-      calldata: [2n, 360n],
+      calldata: myCallData.compile("create_energy_demand", { amount_kwh: 2n, max_price_per_kwh: 360n })
     }])
   );
 
@@ -478,14 +466,14 @@ async function runScenario4(contractClass, contractAddress) {
     G1.execute([{
       contractAddress,
       entrypoint: "execute_optimized_matching",
-      calldata: [],
+      calldata: []
     }])
   );
 
   console.log("  Scenario 4 complete");
 }
 
-async function runHighLoadMatching(contractAddress) {
+async function runHighLoadMatching(contractClass, contractAddress) {
   console.log("\n=== High load: 10-pair matching (O(n²) baseline) ===");
   const adminAcc = account(0);
   await measure("execute_automatic_matching (10 active offers/demands)", () =>
@@ -504,12 +492,15 @@ function summarizeMetrics() {
     "execute_optimized_matching",
     "deposit_funds",
   ];
-
+  
   const summary = {};
   for (const tx of results.transactions) {
-    if (!tx.gas_l2 || tx.gas_l2 === 0) continue;
+    if (tx.gas_l2 === undefined || tx.gas_l2 === null) continue;
+    const normalizedLabel = tx.label.toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ").trim();
+    // Find which key function this matches
     for (const kf of keyFunctions) {
-      if (tx.label.toLowerCase().includes(kf.toLowerCase().replace(/_/g, " "))) {
+      const normalizedKey = kf.toLowerCase().replace(/_/g, " ");
+      if (normalizedLabel.includes(normalizedKey) || tx.label.toLowerCase().includes(kf.toLowerCase())) {
         if (!summary[kf]) summary[kf] = [];
         summary[kf].push({
           gas: tx.gas_l2,
@@ -520,55 +511,61 @@ function summarizeMetrics() {
       }
     }
   }
-
-  console.log("\nFunction | Gas L2 | Fee (STRK) | Latency (s) | TX Hash");
-  console.log("---------|--------|------------|-------------|--------");
+  
+  const tableRows = [];
   for (const [fn, entries] of Object.entries(summary)) {
     for (const e of entries) {
-      console.log(`${fn} | ${e.gas.toLocaleString()} | ${e.fee_strk} | ${e.lat} | ${e.hash ? e.hash.slice(0,16) + "..." : "N/A"}`);
+      tableRows.push([
+        fn,
+        e.gas ? e.gas.toLocaleString() : "N/A",
+        e.fee_strk !== undefined ? String(e.fee_strk) : "N/A",
+        e.lat !== undefined ? String(e.lat) : "N/A",
+        e.hash ? e.hash.slice(0, 16) + "..." : "N/A"
+      ]);
     }
   }
 
+  const headers = ["Function", "Gas L2", "Fee (STRK)", "Latency (s)", "TX Hash"];
+  const colWidths = headers.map((header, i) => 
+    Math.max(header.length, ...tableRows.map(row => String(row[i]).length))
+  );
+
+  const pad = (text, width) => String(text).padEnd(width, ' ');
+
+  const headerLine = headers.map((h, i) => pad(h, colWidths[i])).join(' | ');
+  const separatorLine = colWidths.map(w => '-'.repeat(w)).join('-|-');
+  
+  console.log('\n' + headerLine);
+  console.log(separatorLine);
+
+  for (const row of tableRows) {
+    const line = row.map((val, i) => pad(val, colWidths[i])).join(' | ');
+    console.log(line);
+  }
+  
   results.summary = summary;
-  fs.writeFileSync("/home/volkova/energy-p2p-starknet-jocici2026/test_results.json", JSON.stringify(results, null, 2));
+  fs.writeFileSync(test_results, JSON.stringify(results, null, 2));
   console.log("\nFull results saved to test_results.json");
 }
 
 async function main() {
   try {
     console.log("Starting EnergyP2PTradingV2 test suite on Starknet Sepolia...");
-
-    const abiPath = path.join(CONTRACT_DIR, "energy_p2p_EnergyP2PTradingV2.contract_class.json");
-    const sierraData = JSON.parse(fs.readFileSync(abiPath, "utf8"));
-
-    let abi = sierraData.abi;
-    if (!Array.isArray(abi)) {
-      if (Array.isArray(sierraData.contract_class?.abi)) {
-        abi = sierraData.contract_class.abi;
-      } else if (Array.isArray(sierraData.abi?.abi)) {
-        abi = sierraData.abi.abi;
-      } else {
-        throw new Error(
-          "ABI is not an array. sierraData keys: " +
-            Object.keys(sierraData).join(", ")
-        );
-      }
-    }
-
-    console.log("ABI cargado exitosamente. Longitud:", abi.length);
-
+    
     const { contractAddress, contractClass } = await deployContract();
+ 
     await runScenario1(contractClass, contractAddress); 
     await runScenario2(contractClass, contractAddress);
     await runScenario3(contractClass, contractAddress);
     await runScenario4(contractClass, contractAddress);
-    await runHighLoadMatching(contractAddress);
+    await runHighLoadMatching(contractClass, contractAddress);
 
     console.log("\n✅ Scenario(s) completed successfully");
+    summarizeMetrics();
   } catch (e) {
     console.error(e);
     fs.writeFileSync(
-      "/home/volkova/energy-p2p-starknet-jocici2026/test_results.json",
+      test_results,
       JSON.stringify(results, null, 2)
     );
     console.log("Partial results saved");
