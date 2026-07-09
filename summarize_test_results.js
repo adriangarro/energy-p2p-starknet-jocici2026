@@ -88,7 +88,7 @@ function summarize(summary) {
       avgGas,
       avgFee,
       avgLatency: avgLat,
-      sampleHash//: sampleHash ? String(sampleHash).slice(0, 16) + '...' : 'N/A',
+      sampleHash
     });
   }
   return rows;
@@ -104,10 +104,12 @@ function printTable(rows) {
   const colWidths = headers.map(h => h.length);
 
   for (const row of rows) {
+    const gasStr = row.avgGas ? Math.round(row.avgGas).toLocaleString() : 'N/A';
+    
     colWidths[0] = Math.max(colWidths[0], String(row.function).length);
     colWidths[1] = Math.max(colWidths[1], String(row.count).length);
-    colWidths[2] = Math.max(colWidths[2], String(formatNumber(row.avgGas)).length);
-    colWidths[3] = Math.max(colWidths[3], String(formatNumber(row.avgFee)).length);
+    colWidths[2] = Math.max(colWidths[2], gasStr.length); 
+    colWidths[3] = Math.max(colWidths[3], String(formatNumber(row.avgFee, 6)).length);
     colWidths[4] = Math.max(colWidths[4], String(formatNumber(row.avgLatency)).length);
     colWidths[5] = Math.max(colWidths[5], String(row.sampleHash).length);
   }
@@ -119,10 +121,12 @@ function printTable(rows) {
   console.log(headerLine);
   console.log(separator);
   for (const row of rows) {
+    const gasStr = row.avgGas ? Math.round(row.avgGas).toLocaleString() : 'N/A';
+
     const line = [
       pad(row.function, colWidths[0]),
       pad(row.count, colWidths[1]),
-      pad(formatNumber(row.avgGas), colWidths[2]),
+      pad(gasStr, colWidths[2]), 
       pad(formatNumber(row.avgFee, 6), colWidths[3]),
       pad(formatNumber(row.avgLatency), colWidths[4]),
       pad(row.sampleHash, colWidths[5]),
