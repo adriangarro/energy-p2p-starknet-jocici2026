@@ -55,15 +55,20 @@ This repository contains the full Cairo 2.x implementation of `EnergyP2PTradingV
 curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
 
 # Compile
-cd energy_p2p
 scarb build
 
-# Run local devnet (requires starknet-devnet v0.4.3)
-starknet-devnet --port 5050 --seed 42 --accounts 5
+# Install JS dependencies (starknet.js + dotenv, pinned in package.json)
+npm install
 
-# Execute test scenarios
-npm install starknet
+# Configure environment: copy the template and fill in your Sepolia RPC URL
+# and five pre-funded Sepolia account credentials (never commit .env)
+cp .env.example .env
+
+# Execute test scenarios against Starknet Sepolia
 node run_scenarios.js
+
+# Print the metrics table from test_results.json
+node summarize_test_results.js
 ```
 
 ## Contract Address (Starknet Sepolia Devnet)

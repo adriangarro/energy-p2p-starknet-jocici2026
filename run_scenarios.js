@@ -101,14 +101,16 @@ async function ensureUserRegistered(account, contractClass, contractAddress, lab
       calldata: myCallData.compile("get_user_profile", { user: account.address })
     });
 
-    const isRegistered = response.result.some(val => val !== "0x0" && val !== "0");
+    // starknet.js v6+ returns the felt array directly; v5 wrapped it in { result }
+    const felts = Array.isArray(response) ? response : response.result;
+    const isRegistered = felts.some(val => val !== "0x0" && val !== "0");
 
     if (isRegistered) {
       console.log(`  - Skipping ${label}: The user is already registered.`);
-      return; 
+      return;
     }
   } catch (error) {
-
+    console.log(`  - Could not verify registration for ${label} (${error.message}); attempting register_user.`);
   }
 
   await measure(label, () =>
@@ -473,7 +475,7 @@ async function runScenario4(contractClass, contractAddress) {
   console.log("  Scenario 4 complete");
 }
 
-async function runHighLoadMatching(contractClass, contractAddress) {
+async function runHighLoadMatching(contractAddress) {
   console.log("\n=== High load: 10-pair matching (O(n²) baseline) ===");
   const adminAcc = account(0);
   await measure("execute_automatic_matching (10 active offers/demands)", () =>
@@ -558,7 +560,7 @@ async function main() {
     await runScenario2(contractClass, contractAddress);
     await runScenario3(contractClass, contractAddress);
     await runScenario4(contractClass, contractAddress);
-    await runHighLoadMatching(contractClass, contractAddress);
+    await runHighLoadMatching(contractAddress);
 
     console.log("\n✅ Scenario(s) completed successfully");
     summarizeMetrics();
