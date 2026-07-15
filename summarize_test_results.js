@@ -87,8 +87,7 @@ function summarize(summary) {
       count,
       avgGas,
       avgFee,
-      avgLatency: avgLat,
-      sampleHash
+      avgLatency: avgLat
     });
   }
   return rows;
@@ -100,7 +99,7 @@ function printTable(rows) {
     return;
   }
 
-  const headers = ['Function', 'Count', 'Avg Gas', 'Avg Fee (STRK)', 'Avg Latency (s)', 'Sample Tx'];
+  const headers = ['Function', 'Count', 'Avg Gas', 'Avg Fee (STRK)', 'Avg Latency (s)'];
   const colWidths = headers.map(h => h.length);
 
   for (const row of rows) {
@@ -111,7 +110,6 @@ function printTable(rows) {
     colWidths[2] = Math.max(colWidths[2], gasStr.length); 
     colWidths[3] = Math.max(colWidths[3], String(formatNumber(row.avgFee, 6)).length);
     colWidths[4] = Math.max(colWidths[4], String(formatNumber(row.avgLatency)).length);
-    colWidths[5] = Math.max(colWidths[5], String(row.sampleHash).length);
   }
 
   const pad = (value, width) => String(value).padEnd(width, ' ');
@@ -129,7 +127,6 @@ function printTable(rows) {
       pad(gasStr, colWidths[2]), 
       pad(formatNumber(row.avgFee, 6), colWidths[3]),
       pad(formatNumber(row.avgLatency), colWidths[4]),
-      pad(row.sampleHash, colWidths[5]),
     ].join(' | ');
     console.log(line);
   }
