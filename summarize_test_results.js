@@ -78,9 +78,6 @@ function summarize(summary) {
     const avgGas = gasValues.length ? totalGas / gasValues.length : 0;
     const avgFee = feeValues.length ? totalFee / feeValues.length : 0;
     const avgLat = latValues.length ? totalLat / latValues.length : 0;
-    const sampleHash = entries.find(e => e.hash || e.tx_hash)?.hash
-      || entries.find(e => e.hash || e.tx_hash)?.tx_hash
-      || 'N/A';
 
     rows.push({
       function: fn,
