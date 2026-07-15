@@ -1,0 +1,16 @@
+{
+  "name": "energy-p2p-starknet-jocici2026",
+  "version": "1.0.0",
+  "description": "Scenario runner for EnergyP2PTradingV2 on Starknet Sepolia (JoCICI 2026 companion code)",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "scenarios": "node run_scenarios.js",
+    "summary": "node summarize_test_results.js"
+  },
+  "dependencies": {
+    "dotenv": "17.4.2",
+    "starknet": "10.0.2"
+  },
+  "license": "MIT"
+}
