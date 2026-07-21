@@ -87,9 +87,8 @@ async function measure(label, fn) {
   };
   results.transactions.push(entry);
   console.log(`  ✓ ${label}: gas=${gasL2}, fee=${entry.actual_fee_strk} STRK, lat=${entry.latency_s}s, hash=${transaction_hash.slice(0,12)}...`);
-  return { receipt, txHash: transaction_hash };
+  return { receipt, txHash: transaction_hash, gasL2 };
 }
-
 
 async function ensureUserRegistered(account, contractClass, contractAddress, label, userData) {
   const myCallData = new CallData(contractClass.abi);
@@ -120,6 +119,147 @@ async function ensureUserRegistered(account, contractClass, contractAddress, lab
       calldata: myCallData.compile("register_user", userData)
     }])
   );
+}
+
+async function injectPairs(n, contractAddress) {
+  console.log(`\n  [injectPairs] Registering and populating state for ${n} pairs...`);
+  const juan = account(1);
+  const maria = account(2);
+
+  const { sierra } = readContractArtifacts();
+  const myCallData = new CallData(sierra.abi);
+
+  // ensure users are registered
+  await ensureUserRegistered(juan, sierra, contractAddress, "register_user (Juan GD)", {
+    user_type: 2n,
+    capacity_kw: 100n,
+    location_node: 1n
+  });
+  await ensureUserRegistered(maria, sierra, contractAddress, "register_user (Maria Consumer)", {
+    user_type: 0n,
+    capacity_kw: 50n,
+    location_node: 1n
+  });
+
+  // register a huge energy measurement for the generator (Juan)
+  const txEnergy = await juan.execute([{
+    contractAddress,
+    entrypoint: "register_energy_measurement",
+    calldata: myCallData.compile("register_energy_measurement", { 
+      generated_kwh: 1000000n, 
+      consumed_kwh: 0n 
+    })
+  }]);
+  await provider.waitForTransaction(txEnergy.transaction_hash);
+
+  // deposit a huge amount of funds for the consumer (Maria)
+  const txFunds = await maria.execute([{
+    contractAddress,
+    entrypoint: "deposit_funds",
+    calldata: myCallData.compile("deposit_funds", { 
+      amount: 1000000n 
+    })
+  }]);
+  await provider.waitForTransaction(txFunds.transaction_hash);
+
+  const offerCalls = [];
+  const demandCalls = [];
+
+  for (let i = 0; i < n; i++) {
+    offerCalls.push({
+      contractAddress,
+      entrypoint: "create_energy_offer",
+      calldata: myCallData.compile("create_energy_offer", {
+        amount_kwh: 5n,
+        price_per_kwh: 330n
+      })
+    });
+
+    demandCalls.push({
+      contractAddress,
+      entrypoint: "create_energy_demand",
+      calldata: myCallData.compile("create_energy_demand", {
+        amount_kwh: 5n,
+        max_price_per_kwh: 350n
+      })
+    });
+  }
+
+  const txOffer = await juan.execute(offerCalls);
+  await provider.waitForTransaction(txOffer.transaction_hash);
+
+  const txDemand = await maria.execute(demandCalls);
+  await provider.waitForTransaction(txDemand.transaction_hash);
+
+  console.log(`  [injectPairs] ✓ Successfully injected ${n} offer/demand pairs.`);
+}
+
+async function runBenchmark(contractAddress) {
+  console.log("\n=== Benchmarking Matching Algorithms ===");
+  const adminAcc = account(0);
+  const benchmarkResults = [];
+
+  const ns = [5, 10, 20];
+  for (const n of ns) {
+    console.log(`\n--- Starting Benchmark for n = ${n} pairs ---`);
+
+    console.log(`  [Benchmark] Clearing any pre-existing state...`);
+    try {
+      const { transaction_hash } = await adminAcc.execute([{ contractAddress, entrypoint: "execute_automatic_matching", calldata: [] }]);
+      await provider.waitForTransaction(transaction_hash);
+      console.log(`  [Benchmark] ✓ State cleared.`);
+    } catch (e) {
+      console.log(`  [Benchmark] State was already clean or could not be cleared. Continuing...`);
+    }
+
+    await injectPairs(n, contractAddress);
+    
+    const autoLabel = `execute_automatic_matching (n=${n})`;
+    const { gasL2: gasAuto } = await measure(autoLabel, () =>
+      adminAcc.execute([{
+        contractAddress,
+        entrypoint: "execute_automatic_matching",
+        calldata: []
+      }])
+    );
+
+    await injectPairs(n, contractAddress);
+
+    const optLabel = `execute_optimized_matching (n=${n})`;
+    const { gasL2: gasOpt } = await measure(optLabel, () =>
+      adminAcc.execute([{
+        contractAddress,
+        entrypoint: "execute_optimized_matching",
+        calldata: []
+      }])
+    );
+
+    let savingsPct = 0;
+    if (gasAuto > 0) {
+      savingsPct = ((gasAuto - gasOpt) / gasAuto) * 100;
+    }
+
+    benchmarkResults.push({
+      n,
+      gasAuto,
+      gasOpt,
+      savingsPct
+    });
+  }
+
+  // output formatted console table
+  console.log("\n=== ACADEMIC BENCHMARK TABLE ===");
+  console.log("-----------------------------------------------------------------");
+  console.log("| n pairs | Gas Automatic | Gas Optimized | % Savings           |");
+  console.log("-----------------------------------------------------------------");
+  for (const res of benchmarkResults) {
+    const nStr = String(res.n).padStart(7, " ");
+    const autoStr = String(res.gasAuto).padStart(13, " ");
+    const optStr = String(res.gasOpt).padStart(13, " ");
+    const savingsStr = (res.savingsPct.toFixed(2) + "%").padStart(18, " ");
+    console.log(`| ${nStr} | ${autoStr} | ${optStr} | ${savingsStr} |`);
+  }
+  console.log("-----------------------------------------------------------------");
 }
 
 function readContractArtifacts() {
@@ -318,17 +458,17 @@ async function runScenario2(contractClass, contractAddress) {
 
 async function runScenario3(contractClass, contractAddress) {
   console.log("\n=== Scenario 3: Insufficient solvency ===");
-  // Reuse seller from sc2, register new poor buyer
-  // We need a new account — reuse account 4 but with fresh offer
+  // reuse seller from sc2, register new poor buyer
+  // we need a new account — reuse account 4 but with fresh offer
   const seller = account(3);
   const poorBuyer = account(4);
 
   const myCallData = new CallData(contractClass.abi);
 
-  // Reset poor buyer: deposit only 500 COP (need 990 for 3kWh@330)
-  // Note: buyer already has 5000 in balance from scenario 2
-  // We need to create demand that exceeds available-after-prior balance
-  // Simpler: create new offer and demand with new amounts
+  // reset poor buyer: deposit only 500 COP (need 990 for 3kWh@330)
+  // note: buyer already has 5000 in balance from scenario 2
+  // we need to create demand that exceeds available-after-prior balance
+  // simpler: create new offer and demand with new amounts
   await measure("create_energy_offer (3kWh @ 330 Esc3)", () =>
     seller.execute([{ 
       contractAddress, 
@@ -337,9 +477,9 @@ async function runScenario3(contractClass, contractAddress) {
     }])
   );
 
-  // Buyer already has funds from previous scenario — this scenario shows
+  // buyer already has funds from previous scenario — this scenario shows
   // the financial protection check when balance would go negative conceptually
-  // Better: withdraw most funds first
+  // better: withdraw most funds first
   await measure("withdraw_funds (Buyer leaves 200 COP)", () =>
     poorBuyer.execute([{ 
       contractAddress, 
@@ -348,8 +488,8 @@ async function runScenario3(contractClass, contractAddress) {
     }])
   );
 
-  // Now poorBuyer has ~200 COP, needs 990 for 3kWh@330 — demand creation will fail
-  // The assert in create_energy_demand will catch insufficient funds
+  // now poorBuyer has ~200 COP, needs 990 for 3kWh@330 — demand creation will fail
+  // the assert in create_energy_demand will catch insufficient funds
   console.log("  Scenario 3: Attempting demand with 200 COP balance, need 990...");
   try {
     const t0 = Date.now();
@@ -371,7 +511,7 @@ async function runScenario3(contractClass, contractAddress) {
     results.transactions.push(entry);
     console.log(`  ✓ Demand REVERTED as expected: ${receipt.revert_reason || "Insufficient funds"}`);
   } catch (e) {
-    // Expected revert
+    // expected revert
     results.transactions.push({ 
       label: "create_energy_demand (Esc.3 REJECTED)", 
       status: "REVERTED", 
@@ -550,17 +690,105 @@ function summarizeMetrics() {
   console.log("\nFull results saved to test_results.json");
 }
 
+async function runLatencyCampaign(contractClass, contractAddress) {
+  console.log("\n=== Starting Short Latency Campaign ===");
+  
+  // use account 0 for the stress test
+  const testAccount = account(0);
+  const myCallData = new CallData(contractClass.abi);
+  
+  const NUM_TXS = 20; // campaign size
+  let latencies = [];
+
+  // --- ACCOUNT PREPARATION ---
+  console.log("Ensuring the account is registered...");
+  
+  // userData matching your contract struct: Consumer (0n), Node 1, Capacity 50
+  const userData = {
+    user_type: 0n,
+    capacity_kw: 50n,
+    location_node: 1n
+  };
+
+  // call your helper function to register (or skip if already registered)
+  await ensureUserRegistered(
+    testAccount,
+    contractClass,
+    contractAddress,
+    "Latency_Test_Account",
+    userData
+  );
+  
+  console.log(" ✓ Account is ready.");
+  console.log(`Executing ${NUM_TXS} consecutive transactions...`);
+
+  // --- LATENCY MEASUREMENT LOOP ---
+  for (let i = 0; i < NUM_TXS; i++) {
+    const t0 = Date.now();
+    
+    try {
+      const tx = await testAccount.execute([{ 
+        contractAddress, 
+        entrypoint: "deposit_funds", 
+        calldata: myCallData.compile("deposit_funds", { amount: 100n }) 
+      }]);
+      
+      await provider.waitForTransaction(tx.transaction_hash);
+      const t1 = Date.now();
+      
+      const latency = (t1 - t0) / 1000;
+      latencies.push(latency);
+      console.log(`  ✓ Tx ${i + 1} confirmed in ${latency.toFixed(2)}s`);
+    } catch (error) {
+      console.error(`  x Error on Tx ${i + 1}:`, error.message);
+    }
+  }
+
+  // --- STATISTICS CALCULATION ---
+  if (latencies.length === 0) {
+    console.log("No transactions were completed.");
+    return;
+  }
+
+  // sort the array from shortest to longest time
+  latencies.sort((a, b) => a - b);
+
+  // calculate Mean (Average)
+  const sum = latencies.reduce((acc, val) => acc + val, 0);
+  const mean = sum / latencies.length;
+
+  // calculate Median (Center value)
+  const mid = Math.floor(latencies.length / 2);
+  const median = latencies.length % 2 !== 0 
+    ? latencies[mid] 
+    : (latencies[mid - 1] + latencies[mid]) / 2;
+
+  // calculate 95th Percentile (p95)
+  const indexP95 = Math.floor(latencies.length * 0.95);
+  const p95 = latencies[indexP95];
+
+  console.log("\n=== Latency Results (Short Campaign) ===");
+  console.log(`Total successful transactions: ${latencies.length}`);
+  console.log(`Mean:   ${mean.toFixed(2)} s`);
+  console.log(`Median: ${median.toFixed(2)} s`);
+  console.log(`P95:    ${p95.toFixed(2)} s`);
+  console.log(`Min:    ${latencies[0].toFixed(2)} s`);
+  console.log(`Max:    ${latencies[latencies.length - 1].toFixed(2)} s`);
+}
+
 async function main() {
   try {
     console.log("Starting EnergyP2PTradingV2 test suite on Starknet Sepolia...");
     
     const { contractAddress, contractClass } = await deployContract();
- 
+
+    await runBenchmark(contractAddress);
     await runScenario1(contractClass, contractAddress); 
     await runScenario2(contractClass, contractAddress);
     await runScenario3(contractClass, contractAddress);
     await runScenario4(contractClass, contractAddress);
     await runHighLoadMatching(contractAddress);
+    await runLatencyCampaign(contractClass, contractAddress);
 
     console.log("\n✅ Scenario(s) completed successfully");
     summarizeMetrics();
